@@ -8,7 +8,7 @@ from py_clob_client.constants import POLYGON
 
 # Web3 libraries for blockchain interaction
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
+from web3.middleware.geth_poa import geth_poa_middleware
 from eth_account import Account
 
 import requests                     # HTTP requests
@@ -51,10 +51,15 @@ class PolymarketClient:
         key=os.getenv("PK")
         browser_address = os.getenv("BROWSER_ADDRESS")
 
+        if not browser_address:
+            raise ValueError("BROWSER_ADDRESS environment variable is required")
+        if not key:
+            raise ValueError("PK environment variable is required")
+
         # Don't print sensitive wallet information
         print("Initializing Polymarket client...")
         chain_id=POLYGON
-        self.browser_wallet=Web3.toChecksumAddress(browser_address)
+        self.browser_wallet=Web3.to_checksum_address(browser_address)
 
         # Initialize the Polymarket API client
         self.client = ClobClient(
@@ -75,15 +80,15 @@ class PolymarketClient:
         
         # Set up USDC contract for balance checks
         self.usdc_contract = web3.eth.contract(
-            address="0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", 
+            address=Web3.to_checksum_address("0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"),
             abi=erc20_abi
         )
 
-        # Store key contract addresses
+        # Store key contract addresses (convert to checksum format)
         self.addresses = {
-            'neg_risk_adapter': '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296',
-            'collateral': '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-            'conditional_tokens': '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045'
+            'neg_risk_adapter': Web3.to_checksum_address('0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296'),
+            'collateral': Web3.to_checksum_address('0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'),
+            'conditional_tokens': Web3.to_checksum_address('0x4D97DCd97eC945f40cF65F87097ACe5EA0476045')
         }
 
         # Initialize contract interfaces

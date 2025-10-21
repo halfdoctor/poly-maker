@@ -36,8 +36,21 @@ async def connect_market_websocket(chunk):
             while True:
                 message = await websocket.recv()
                 json_data = json.loads(message)
+
+                # Handle both single dict and list of dicts from websocket
+                if isinstance(json_data, dict):
+                    # Single dictionary - wrap in list
+                    data_to_process = [json_data]
+                elif isinstance(json_data, list):
+                    # Already a list - use as is
+                    data_to_process = json_data
+                else:
+                    # Unexpected type - skip
+                    print(f"Unexpected data type received: {type(json_data)}")
+                    continue
+
                 # Process order book updates and trigger trading as needed
-                process_data(json_data)
+                process_data(data_to_process)
         except websockets.ConnectionClosed:
             print("Connection closed in market websocket")
             print(traceback.format_exc())

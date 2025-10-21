@@ -42,12 +42,20 @@ def process_data(json_datas, trade=True):
                 asyncio.create_task(perform_trade(asset))
                 
         elif event_type == 'price_change':
-            for data in json_data['changes']:
-                side = 'bids' if data['side'] == 'BUY' else 'asks'
-                price_level = float(data['price'])
-                new_size = float(data['size'])
-                process_price_change(asset, side, price_level, new_size)
+            # Handle different price_change message structures
+            if 'changes' in json_data:
+                for data in json_data['changes']:
+                    side = 'bids' if data['side'] == 'BUY' else 'asks'
+                    price_level = float(data['price'])
+                    new_size = float(data['size'])
+                    process_price_change(asset, side, price_level, new_size)
 
+                    if trade:
+                        asyncio.create_task(perform_trade(asset))
+            else:
+                # Handle price_change messages without 'changes' key
+                # These might be simple price updates with direct fields
+                print(f"Processing price_change without 'changes' key for asset {asset}")
                 if trade:
                     asyncio.create_task(perform_trade(asset))
         
