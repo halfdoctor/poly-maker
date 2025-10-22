@@ -3,6 +3,7 @@ import time                    # Time functions
 import asyncio                 # Asynchronous I/O
 import traceback               # Exception handling
 import threading               # Thread management
+import argparse                # Command line argument parsing
 
 from poly_data.polymarket_client import PolymarketClient
 from poly_data.data_utils import update_markets, update_positions, update_orders
@@ -13,10 +14,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def update_once():
+def parse_arguments():
+    """Parse command line arguments for spread trading mode."""
+    parser = argparse.ArgumentParser(description='Polymarket Trading Bot')
+    parser.add_argument('--spread', action='store_true',
+                       help='Enable spread-based trading mode (ignores reward parameters)')
+    return parser.parse_args()
+
+def update_once(spread_mode=False):
     """
     Initialize the application state by fetching market data, positions, and orders.
     """
+    if spread_mode:
+        print("Running in SPREAD TRADING MODE - focusing on bid/ask spread, ignoring reward parameters")
+    else:
+        print("Running in REWARD TRADING MODE - focusing on reward parameters")
+
     update_markets()    # Get market information from Google Sheets
     update_positions()  # Get current positions from Polymarket
     update_orders()     # Get current orders from Polymarket
@@ -76,20 +89,24 @@ def update_periodically():
             print("Error in update_periodically")
             print(traceback.format_exc())
             
-async def main():
+async def main(spread_mode=False):
     """
     Main application entry point. Initializes client, data, and manages websocket connections.
     """
     # Initialize client
     global_state.client = PolymarketClient()
-    
+
+    # Set spread mode flag in global state for trading logic to use
+    global_state.spread_mode = spread_mode
+
     # Initialize state and fetch initial data
     global_state.all_tokens = []
-    update_once()
+    update_once(spread_mode=spread_mode)
     print("After initial updates: ", global_state.orders, global_state.positions)
 
     print("\n")
-    print(f'There are {len(global_state.df)} market, {len(global_state.positions)} positions and {len(global_state.orders)} orders. Starting positions: {global_state.positions}')
+    df_len = len(global_state.df) if global_state.df is not None else 0
+    print(f'There are {df_len} markets, {len(global_state.positions)} positions and {len(global_state.orders)} orders. Starting positions: {global_state.positions}')
 
     # Start background update thread
     update_thread = threading.Thread(target=update_periodically, daemon=True)
@@ -112,4 +129,5 @@ async def main():
         gc.collect()  # Clean up memory
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    args = parse_arguments()
+    asyncio.run(main(spread_mode=args.spread))

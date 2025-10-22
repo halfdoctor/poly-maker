@@ -66,3 +66,61 @@ def get_sheet_df(read_only=None):
             hyperparams.setdefault(current_type, {})[r['param']] = value
 
     return result, hyperparams
+
+def get_sheet_df_spread(read_only=None):
+   """
+   Get sheet data from 'Selected Markets' worksheet with optional read-only mode.
+   Used for spread-based trading that focuses on bid/ask spread rather than rewards.
+
+   Args:
+       read_only (bool): If None, auto-detects based on credentials availability
+   """
+   sel = 'Selected Markets'  # Use the spread markets worksheet
+
+   # Auto-detect read-only mode if not specified
+   if read_only is None:
+       creds_file = 'credentials.json' if os.path.exists('credentials.json') else '../credentials.json'
+       read_only = not os.path.exists(creds_file)
+       if read_only:
+           print("No credentials found, using read-only mode")
+
+   try:
+       spreadsheet = get_spreadsheet(read_only=read_only)
+   except FileNotFoundError:
+       print("No credentials found, falling back to read-only mode")
+       spreadsheet = get_spreadsheet(read_only=True)
+
+   wk = spreadsheet.worksheet(sel)
+   df = pd.DataFrame(wk.get_all_records())
+   df = df[df['question'] != ""].reset_index(drop=True)
+
+   # For spread trading, we don't need to merge with 'All Markets' since we're only
+   # interested in markets with good spreads, not reward parameters
+
+   wk_p = spreadsheet.worksheet('Hyperparameters')
+   records = wk_p.get_all_records()
+   hyperparams, current_type = {}, None
+
+   for r in records:
+       # Update current_type only when we have a non-empty type value
+       # Handle both string and NaN values from pandas
+       type_value = r['type']
+       if type_value and str(type_value).strip() and str(type_value) != 'nan':
+           current_type = str(type_value).strip()
+
+       # Skip rows where we don't have a current_type set
+       if current_type:
+           # Convert numeric values to appropriate types
+           value = r['value']
+           try:
+               # Try to convert to float if it's numeric
+               if isinstance(value, str) and value.replace('.', '').replace('-', '').isdigit():
+                   value = float(value)
+               elif isinstance(value, (int, float)):
+                   value = float(value)
+           except (ValueError, TypeError):
+               pass  # Keep as string if conversion fails
+
+           hyperparams.setdefault(current_type, {})[r['param']] = value
+
+   return df, hyperparams

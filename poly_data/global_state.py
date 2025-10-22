@@ -47,3 +47,6 @@ orders = {}
 # Format: {token_id: {'size': float, 'avgPrice': float}}
 positions = {}
 
+# Spread trading mode flag - when True, ignores reward parameters and focuses on bid-ask spread
+spread_mode = False
+

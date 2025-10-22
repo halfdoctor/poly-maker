@@ -5,6 +5,7 @@ import asyncio                  # Asynchronous I/O
 import traceback                # Exception handling
 import pandas as pd             # Data analysis library
 import math                     # Mathematical functions
+import argparse                 # Command line argument parsing
 
 import poly_data.global_state as global_state
 import poly_data.CONSTANTS as CONSTANTS
@@ -16,6 +17,7 @@ from poly_data.data_utils import get_position, get_order, set_position
 # Create directory for storing position risk information
 if not os.path.exists('positions/'):
     os.makedirs('positions/')
+
 
 def send_buy_order(order):
     """
@@ -57,9 +59,11 @@ def send_buy_order(order):
 
     trade = True
 
-    # Don't place orders that are below incentive threshold
-    if order['price'] < incentive_start:
-        trade = False
+    # In spread trading mode, ignore incentive thresholds and focus on spread
+    if not global_state.spread_mode:
+        # Don't place orders that are below incentive threshold (original logic)
+        if order['price'] < incentive_start:
+            trade = False
 
     if trade:
         # Only place orders with prices between 0.1 and 0.9 to avoid extreme positions
@@ -76,7 +80,8 @@ def send_buy_order(order):
         else:
             print("Not creating buy order because its outside acceptable price range (0.1-0.9)")
     else:
-        print(f'Not creating new order because order price of {order["price"]} is less than incentive start price of {incentive_start}. Mid price is {order["mid_price"]}')
+        if not global_state.spread_mode:
+            print(f'Not creating new order because order price of {order["price"]} is less than incentive start price of {incentive_start}. Mid price is {order["mid_price"]}')
 
 
 def send_sell_order(order):
@@ -258,10 +263,10 @@ async def perform_trade(market):
                 # Get position for the opposite token to calculate total exposure
                 other_token = global_state.REVERSE_TOKENS[str(token)]
                 other_position = get_position(other_token)['size']
-                
+
                 # Calculate how much to buy or sell based on our position
                 buy_amount, sell_amount = get_buy_sell_amount(position, bid_price, row, other_position)
-                
+
                 # Get max_size for logging (same logic as in get_buy_sell_amount)
                 max_size = row.get('max_size', row['trade_size'])
 
@@ -275,7 +280,7 @@ async def perform_trade(market):
                     'token_name': detail['name'],
                     'row': row
                 }
-            
+
                 print(f"Position: {position}, Other Position: {other_position}, "
                       f"Trade Size: {row['trade_size']}, Max Size: {max_size}, "
                       f"buy_amount: {buy_amount}, sell_amount: {sell_amount}")
@@ -350,8 +355,9 @@ async def perform_trade(market):
                 # Only buy if:
                 # 1. Position is less than max_size (new logic)
                 # 2. Position is less than absolute cap (250)
-                # 3. Buy amount is above minimum size
-                if position < max_size and position < 250 and buy_amount > 0 and buy_amount >= row['min_size']:
+                # 3. Buy amount is reasonable (either meets min_size or is a reasonable fraction)
+                min_size_threshold = min(row['min_size'], row['trade_size'])
+                if position < max_size and position < 250 and buy_amount > 0 and buy_amount >= min_size_threshold:
                     # Get reference price from market data
                     sheet_value = row['best_bid']
 

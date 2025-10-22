@@ -182,9 +182,13 @@ def get_buy_sell_amount(position, bid_price, row, other_token_position=0):
         else:
             buy_amount = 0
 
-    # Ensure minimum order size compliance
-    if buy_amount > 0.7 * row['min_size'] and buy_amount < row['min_size']:
-        buy_amount = row['min_size']
+    # Ensure minimum order size compliance - be more flexible
+    if buy_amount > 0 and buy_amount < row['min_size']:
+        # If buy_amount is less than min_size, either use it as-is for small markets
+        # or scale it up if it's a reasonable fraction of min_size
+        if buy_amount >= 0.5 * row['min_size']:
+            buy_amount = row['min_size']
+        # For very small buy_amounts, keep them as-is to allow market making
 
     # Apply multiplier for low-priced assets
     if bid_price < 0.1 and buy_amount > 0:

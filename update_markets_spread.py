@@ -74,13 +74,14 @@ def sort_df(df):
     return sorted_df
 
 def fetch_and_process_data():
-    global spreadsheet, client, wk_all, wk_vol, sel_df
+    global spreadsheet, client, wk_all, wk_vol, wk_spread, sel_df
     
     spreadsheet = get_spreadsheet()
     client = get_clob_client()
 
     wk_all = spreadsheet.worksheet("All Markets")
     wk_vol = spreadsheet.worksheet("Volatility Markets")
+    wk_spread = spreadsheet.worksheet("Spread Markets")
     wk_full = spreadsheet.worksheet("Full Markets")
 
     sel_df = get_sel_df(spreadsheet, "Selected Markets")
@@ -95,7 +96,7 @@ def fetch_and_process_data():
 
     print(f'{pd.to_datetime("now")}: Fetched all markets data of length {len(all_markets)}.')
     new_df = add_volatility_to_df(all_markets)
-    new_df['volatility_sum'] =  new_df['24_hour'] + new_df['7_day'] + new_df['14_day']
+    new_df['volatility_sum'] =  new_df['24_hour'] + new_df['7_day'] + new_df['30_day']
     
     new_df = new_df.sort_values('volatility_sum', ascending=True)
     new_df['volatilty/reward'] = ((new_df['gm_reward_per_100'] / new_df['volatility_sum']).round(2)).astype(str)
@@ -111,7 +112,14 @@ def fetch_and_process_data():
     volatility_df = volatility_df.sort_values('gm_reward_per_100', ascending=False)
    
     new_df = new_df.sort_values('gm_reward_per_100', ascending=False)
-    
+
+    # Create spread markets dataframe - markets with highest volume/spread combination
+    spread_df = new_df.copy()
+    # Calculate composite volume/spread score (higher volume and spread = higher score)
+    spread_df['volume_spread_score'] = (spread_df['24_hour'] + spread_df['7_day'] + spread_df['30_day']) * spread_df['spread']
+    spread_df = spread_df.sort_values('volume_spread_score', ascending=False)
+    # Remove the scoring column as it's just for sorting
+    # spread_df = spread_df.drop(columns=['volume_spread_score'])
 
     print(f'{pd.to_datetime("now")}: Fetched select market of length {len(new_df)}.')
 
@@ -119,6 +127,7 @@ def fetch_and_process_data():
         update_sheet(new_df, wk_all)
         update_sheet(volatility_df, wk_vol)
         update_sheet(m_data, wk_full)
+        update_sheet(spread_df, wk_spread)
     else:
         print(f'{pd.to_datetime("now")}: Not updating sheet because of length {len(new_df)}.')
 

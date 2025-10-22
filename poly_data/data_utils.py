@@ -145,8 +145,15 @@ def set_order(token, side, size, price):
 
     
 
-def update_markets():
-    received_df, received_params = get_sheet_df()
+def update_markets(spread_mode=False):
+    if spread_mode:
+        # Import here to avoid circular imports
+        from poly_data.utils import get_sheet_df_spread
+        received_df, received_params = get_sheet_df_spread()
+        print("Using spread-based market data from 'Spread Markets' worksheet")
+    else:
+        received_df, received_params = get_sheet_df()
+        print("Using reward-based market data from 'Selected Markets' worksheet")
 
     if len(received_df) > 0:
         global_state.df, global_state.params = received_df.copy(), received_params
