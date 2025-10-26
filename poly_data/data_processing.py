@@ -56,8 +56,11 @@ def process_data(json_datas, trade=True):
                 # Handle price_change messages without 'changes' key
                 # These might be simple price updates with direct fields
                 print(f"Processing price_change without 'changes' key for asset {asset}")
+                # TODO: Optionally parse direct fields if available, e.g., if 'price' and 'side' in json_data
+                # For now, skip trading to avoid decisions on stale data
                 if trade:
-                    asyncio.create_task(perform_trade(asset))
+                    print(f"Skipping trade for {asset} due to missing 'changes' key - data may be stale")
+                    # asyncio.create_task(perform_trade(asset))  # Commented out to prevent stale trades
         
 
         # pretty_print(f'Received book update for {asset}:', global_state.all_data[asset])

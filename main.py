@@ -31,6 +31,7 @@ def update_once(spread_mode=False):
         print("Running in REWARD TRADING MODE - focusing on reward parameters")
 
     update_markets()    # Get market information from Google Sheets
+    # update_markets(spread_mode=spread_mode)    # Get market information from Google Sheets
     update_positions()  # Get current positions from Polymarket
     update_orders()     # Get current orders from Polymarket
 
@@ -81,6 +82,7 @@ def update_periodically():
             # Update market data every 6th cycle (30 seconds)
             if i % 6 == 0:
                 update_markets()
+                # update_markets(spread_mode=global_state.spread_mode)
                 i = 1
                     
             gc.collect()  # Force garbage collection to free memory
