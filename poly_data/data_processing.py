@@ -155,6 +155,3 @@ def process_user_data(rows):
                 
                 set_order(token, side, float(row['original_size']) - float(row['size_matched']), row['price'])
                 asyncio.create_task(perform_trade(market))
-
-    else:
-        print(f"User date received for {market} but its not in")

@@ -9,21 +9,27 @@ import poly_data.global_state as global_state
 async def connect_market_websocket(chunk):
     """
     Connect to Polymarket's market WebSocket API and process market updates.
-    
+
     This function:
     1. Establishes a WebSocket connection to the Polymarket API
     2. Subscribes to updates for a specified list of market tokens
     3. Processes incoming order book and price updates
-    
+
     Args:
         chunk (list): List of token IDs to subscribe to
-        
+
     Notes:
         If the connection is lost, the function will exit and the main loop will
         attempt to reconnect after a short delay.
+        If chunk is empty, skips connection to avoid timeout.
     """
+    if not chunk:
+        print("No tokens to subscribe to, skipping market websocket connection")
+        return
+
     uri = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
-    async with websockets.connect(uri, ping_interval=5, ping_timeout=None) as websocket:
+    print(f"Connecting to market websocket with tokens: {chunk}")
+    async with websockets.connect(uri, ping_interval=5, ping_timeout=None, open_timeout=30) as websocket:
         # Prepare and send subscription message
         message = {"assets_ids": chunk}
         await websocket.send(json.dumps(message))
@@ -81,9 +87,9 @@ async def connect_user_websocket():
         message = {
             "type": "user",
             "auth": {
-                "apiKey": global_state.client.client.creds.api_key, 
-                "secret": global_state.client.client.creds.api_secret,  
-                "passphrase": global_state.client.client.creds.api_passphrase
+                "apiKey": global_state.client.creds.api_key,
+                "secret": global_state.client.creds.api_secret,
+                "passphrase": global_state.client.creds.api_passphrase
             }
         }
 
@@ -98,8 +104,21 @@ async def connect_user_websocket():
             while True:
                 message = await websocket.recv()
                 json_data = json.loads(message)
+
+                # Handle both single dict and list of dicts from websocket
+                if isinstance(json_data, dict):
+                    # Single dictionary - wrap in list
+                    data_to_process = [json_data]
+                elif isinstance(json_data, list):
+                    # Already a list - use as is
+                    data_to_process = json_data
+                else:
+                    # Unexpected type - skip
+                    print(f"Unexpected data type received: {type(json_data)}")
+                    continue
+
                 # Process trade and order updates
-                process_user_data(json_data)
+                process_user_data(data_to_process)
         except websockets.ConnectionClosed:
             print("Connection closed in user websocket")
             print(traceback.format_exc())
